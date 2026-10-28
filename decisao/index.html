@@ -160,12 +160,6 @@ footer{padding:28px 0 36px;color:var(--ink-3);font-size:.82rem}
 <body>
 <header class="top"><div class="wrap">
   <span class="logo" role="img" aria-label="Arquilau de Paula Advocacia Tributária"></span>
-  <div class="quem" id="quem" hidden>Decidindo como
-    <div class="seg" role="group" aria-label="Quem está decidindo">
-      <button type="button" data-quem="Dr. Breno" aria-pressed="false">Dr. Breno</button>
-      <button type="button" data-quem="Dra. Franciany" aria-pressed="false">Dra. Franciany</button>
-    </div>
-  </div>
 </div></header>
 
 <main class="wrap">
@@ -221,8 +215,7 @@ footer{padding:28px 0 36px;color:var(--ink-3);font-size:.82rem}
     compensacao:{titulo:'COMPENSAÇÃO', comp:'Compensação (administrativa)', pend:'Juntar na plataforma a certidão de inexecução'}
   };
   const CHAVE = (location.hash.replace(/^#/,'') || new URLSearchParams(location.search).get('k') || '').trim();
-  const S = { rows:[], hoje:'', sem:[], quem:'', aba:'P', q:'' };
-  try { S.quem = localStorage.getItem('decisao.quem') || ''; } catch(e){}
+  const S = { rows:[], hoje:'', sem:[], quem:'Sócios', aba:'P', q:'' };
 
   async function chamar(url, opts){
     let r;
@@ -290,7 +283,7 @@ footer{padding:28px 0 36px;color:var(--ink-3);font-size:.82rem}
     const v = viaDe(r), concl = !!r.pendConcluida;
     return `<article class="card dec" data-row="${r.row}">
       ${cabeca(r,null)}
-      <div class="via"><span class="via-tag ${v}">${esc(v?VIA[v].titulo:r.via)}</span><span class="via-meta">Decidido por ${esc(r.decisao)}</span></div>
+      <div class="via"><span class="via-tag ${v}">${esc(v?VIA[v].titulo:r.via)}</span><span class="via-meta">Decidido em ${esc(String(r.decisao).replace(/^.*? em /,''))}</span></div>
       <div class="pendencia">${concl ? `<span class="ok">✓ Providência concluída</span> — ${esc(r.pendencia)} (${esc(r.pendConcluida)})` : `Providência aberta: <b>${esc(r.pendencia)}</b>`}</div>
       ${concl ? '' : '<button class="btn desfazer" type="button" data-desfazer>Desfazer decisão</button>'}
     </article>`;
@@ -325,13 +318,6 @@ footer{padding:28px 0 36px;color:var(--ink-3);font-size:.82rem}
     S.aba = qual;
     $('abaPend').setAttribute('aria-selected', String(qual==='P')); $('abaDec').setAttribute('aria-selected', String(qual==='D'));
     $('paneP').hidden = qual!=='P'; $('paneD').hidden = qual!=='D';
-  }
-  function marcarQuem(){
-    document.querySelectorAll('[data-quem]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.quem===S.quem)));
-  }
-  function pedirQuem(){
-    const q = $('quem'); q.classList.remove('pede'); void q.offsetWidth; q.classList.add('pede');
-    window.scrollTo({top:0,behavior:'smooth'});
   }
 
   let toastT = null, ultimo = null;
@@ -371,14 +357,11 @@ footer{padding:28px 0 36px;color:var(--ink-3);font-size:.82rem}
   }
 
   document.addEventListener('click', e=>{
-    const q = e.target.closest('[data-quem]');
-    if (q){ S.quem = q.dataset.quem; try{ localStorage.setItem('decisao.quem', S.quem); }catch(x){} marcarQuem(); $('quem').classList.remove('pede'); return; }
     const mais = e.target.closest('[data-mais]');
     if (mais){ const o = mais.previousElementSibling; o.classList.toggle('aberta'); mais.textContent = o.classList.contains('aberta') ? 'ver menos' : 'ver mais'; return; }
     const op = e.target.closest('.op');
     if (op){
       const card = op.closest('.card'); const via = op.dataset.via;
-      if (!S.quem){ pedirQuem(); toast('Selecione no topo quem está decidindo.'); return; }
       if (card.dataset.sel === via){ fecharConfirma(card); return; }
       card.dataset.sel = via;
       card.querySelectorAll('.op').forEach(o=>o.classList.toggle('ativa', o===op));
@@ -393,7 +376,6 @@ footer{padding:28px 0 36px;color:var(--ink-3);font-size:.82rem}
     const volt = e.target.closest('[data-voltar]'); if (volt){ fecharConfirma(volt.closest('.card')); return; }
     const des = e.target.closest('[data-desfazer]');
     if (des){
-      if (!S.quem){ pedirQuem(); toast('Selecione no topo quem está decidindo.'); return; }
       if (!des.dataset.confirma){ des.dataset.confirma='1'; des.textContent='Toque de novo para desfazer'; setTimeout(()=>{ if(des.isConnected && !des.disabled){ delete des.dataset.confirma; des.textContent='Desfazer decisão'; } },4000); return; }
       desfazer(achar(+des.closest('.card').dataset.row), des); return;
     }
@@ -404,7 +386,7 @@ footer{padding:28px 0 36px;color:var(--ink-3);font-size:.82rem}
   $('abaDec').addEventListener('click', ()=>aba('D'));
   $('q').addEventListener('input', ()=>{ S.q = $('q').value.trim().toLowerCase(); render(); });
 
-  function invalido(){ $('carregando').hidden = true; $('app').hidden = true; $('quem').hidden = true; $('invalido').hidden = false; }
+  function invalido(){ $('carregando').hidden = true; $('app').hidden = true; $('invalido').hidden = false; }
   async function recarregar(){
     const d = await carregarDados(); S.rows = d.rows; S.hoje = d.hoje; S.sem = d.semDecisao || []; render();
   }
@@ -412,7 +394,7 @@ footer{padding:28px 0 36px;color:var(--ink-3);font-size:.82rem}
     if (!CHAVE) return invalido();
     try{
       await recarregar();
-      $('carregando').hidden = true; $('app').hidden = false; $('quem').hidden = false; marcarQuem();
+      $('carregando').hidden = true; $('app').hidden = false;
     }catch(e){
       if (/LINK_INVALIDO/.test(e.message)) return invalido();
       $('carregando').innerHTML = esc(e.message) + ' <a href="" onclick="location.reload();return false">Tentar novamente</a>.';
